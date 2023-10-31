@@ -3,86 +3,78 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 
-# Load data from Excel sheet
-file_path = 'hadron.xlsx'
-sheet_name = 'Customers'
-df = pd.read_excel(file_path, sheet_name=sheet_name)
+# Read the dataset
+dataset = pd.read_excel('hadron.xlsx', nrows=194)
+
+# Set page configuration
+st.set_page_config(
+    page_title="Sales Dashboard",
+    layout="wide"
+)
 
 # Title
-st.title('Customers')
+st.title("Sales Dashboard")
 
 # Filter
 st.subheader("Please Filter Here:")
 
-# Multiselect filters
-selected_cities = st.multiselect("Select Cities:", df["City"].unique(), default=df["City"].unique())
-selected_months = st.multiselect("Select Months:", df.columns[1:], default=df.columns[1:].tolist())
+# Multiselect options
+product_name = st.multiselect("Select Product Name:", dataset["Product Name"].unique(), dataset["Product Name"].unique())
+month = st.multiselect("Select Month:", dataset["Month"].unique(), dataset["Month"].unique())
 
-# Filter the data
-filtered_data = df[df["City"].isin(selected_cities)][["City"] + selected_months]
+# Filter the dataset based on user selection
+selection_query = dataset.query('`Product Name` == @product_name & `Month` == @month')
 
-# Total customers for each month
-column_totals = filtered_data[selected_months].sum()
-
-# Total of "Total Customers" column
-total_customers_total = filtered_data['Total Customers'].sum()
-
-# Pie chart for "Total Sales"
-fig_pie = px.pie(
-    values=filtered_data['Total Customers'],
-    names=filtered_data['City'],
-    title="# Total Customers Distribution"
-)
-
-# Bar chart for sales of each city in each column
-fig_bar = go.Figure()
-
-for city in selected_cities:
-    data_for_city = filtered_data[filtered_data['City'] == city]
-    trace = go.Bar(
-        x=selected_months,
-        y=[data_for_city[column].values[0] for column in selected_months],
-        name=city
-    )
-    fig_bar.add_trace(trace)
-
-fig_bar.update_layout(
-    barmode='group',
-    xaxis_title='City',
-    yaxis_title='Customers',
-    title="# Customers of Each City in Each Month",
-)
-
-# Streamlit App
-
-# Hide Streamlit's menu, header, and footer
-st.markdown(
-    """
-    <style>
-        #MainMenu { visibility:hidden; }
-        header { visibility: hidden; }
-        footer { visibility: hidden; }
-    </style>
-    """, unsafe_allow_html=True
-)
-
+# Display total sales and total quantity
 st.markdown("---")
+total_sales = selection_query["Total Price"].sum()
+total_quantity = selection_query["Quantity"].sum()
 
-# Display DataFrames and Charts
-st.write("**# Monthly Customers by city**")
-st.dataframe(filtered_data)
+st.write("# Total Sales:")
+st.subheader(f"{total_sales:,.0f} Rials")
+st.write("# Total Quantity:")
+st.subheader(f"{total_quantity}")
 
-col1, col2, col3 = st.columns(3)
+# Display filtered data in a DataFrame
+st.markdown("---")
+st.dataframe(selection_query)
 
-col1.write("**# Total Customers for Each City**")
-col1.dataframe(filtered_data[['City', 'Total Customers']])
+# Create a bar chart for sales by product
+filtered_dataset = dataset[(dataset['Product Name'].isin(product_name)) & (dataset['Month'].isin(month))]
+fig = go.Figure()
 
-col2.write("**# Total Customers for Each Month**")
-col2.dataframe(column_totals)
+for product in product_name:
+    product_data = filtered_dataset[filtered_dataset['Product Name'] == product]
+    formatted_prices = product_data['Total Price'].apply(lambda x: '{:,.0f} rials'.format(x))
 
-col3.write("**# Total of Total Customers**")
-col3.markdown(f"- {total_customers_total:,} 🧍🧍‍♀️🧍‍♂️")
+    fig.add_trace(go.Bar(
+        x=product_data['Month'],
+        y=product_data['Total Price'],
+        name=product,
+    ))
 
-st.plotly_chart(fig_pie)
+fig.update_layout(barmode='group', xaxis_tickangle=-45, width=900)
+st.plotly_chart(fig)
 
-st.plotly_chart(fig_bar)
+# Create a bar chart and pie chart for sales by product
+sales_by_product = selection_query.groupby(by=["Product Name"]).sum()[["Total Price"]].sort_values(by="Total Price")
+sales_by_product_barchart = px.bar(sales_by_product, x="Total Price", y=sales_by_product.index, title="# Sales by Product", color_discrete_sequence=["#7752FE"])
+sales_by_product_barchart.update_layout(plot_bgcolor="rgba(0, 0, 0, 0)", xaxis=dict(showgrid=False), height=700)
+
+sales_by_product_piechart = px.pie(sales_by_product, names=sales_by_product.index, values="Total Price", title="# Sales by Product", hole=0.3, color=sales_by_product.index, color_discrete_sequence=px.colors.sequential.RdPu_r)
+sales_by_product_piechart.update_layout(width=700, height=750)
+
+# Display bar chart and pie chart
+st.plotly_chart(sales_by_product_barchart, use_container_width=True)
+st.plotly_chart(sales_by_product_piechart, use_container_width=True)
+
+# Hide Streamlit menu and footer
+hide_css = """
+<style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+</style>
+"""
+
+st.markdown(hide_css, unsafe_allow_html=True)
