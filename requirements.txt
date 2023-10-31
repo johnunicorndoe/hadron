@@ -1,1 +1,2 @@
-import plotly.express as px
+pandas=2.1.2
+plotly-express=0.4.1
