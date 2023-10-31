@@ -30,10 +30,12 @@ st.markdown("---")
 total_sales = selection_query["Total Price"].sum()
 total_quantity = selection_query["Quantity"].sum()
 
-st.write("# Total Sales:")
-st.subheader(f"{total_sales:,.0f} Rials")
-st.write("# Total Quantity:")
-st.subheader(f"{total_quantity}")
+col1, col2 = st.columns(2)
+
+col1.write("# Total Sales:")
+col1.subheader(f"{total_sales:,.0f} Rials")
+col2.write("# Total Quantity:")
+col2.subheader(f"{total_quantity}")
 
 # Display filtered data in a DataFrame
 st.markdown("---")
